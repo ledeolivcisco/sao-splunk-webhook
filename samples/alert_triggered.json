@@ -1,0 +1,35 @@
+{
+  "version": "1.0",
+  "event": "alert.triggered",
+  "event_id": "a1b2c3d4-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "alert": {
+    "id": "alert-7f3c2b91",
+    "name": "High hallucination rate",
+    "status": "triggered",
+    "previous_status": "healthy"
+  },
+  "scope": {
+    "org_id": "org-acme-001",
+    "project_id": "proj-llm-gateway",
+    "project_name": "My Project",
+    "agent_stream_id": "stream-prod-01",
+    "agent_stream_name": "production"
+  },
+  "conditions": [
+    {
+      "metric": "metrics/context_adherence",
+      "aggregation": "Average",
+      "operator": "less than",
+      "threshold": 0.5,
+      "observed_value": 0.34
+    }
+  ],
+  "dedup_key": "alert-7f3c2b91:proj-llm-gateway:stream-prod-01",
+  "deep_link": "https://app.splunk-ao.example.com/project/proj-llm-gateway/agent-streams/stream-prod-01?alert=alert-7f3c2b91",
+  "metadata": {
+    "team": "platform",
+    "env": "production",
+    "service": "my-llm-app"
+  }
+}

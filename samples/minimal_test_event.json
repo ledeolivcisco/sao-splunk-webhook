@@ -1,0 +1,12 @@
+{
+  "version": "1.0",
+  "event": "alert.triggered",
+  "event_id": "00000000-0000-0000-0000-000000000000",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "alert": {
+    "id": "test-alert",
+    "name": "Test event",
+    "status": "triggered"
+  },
+  "dedup_key": "test-alert:test:test"
+}

@@ -1,0 +1,20 @@
+`sao_index`
+| eventstats max(eval(if(event_type=="alert.cleared", _time, null()))) as cleared_time by alert_id
+| search event_type="alert.triggered"
+| eval env=coalesce(metadata_env, "unknown"),
+       service=coalesce(metadata_service, "unknown"),
+       owner=coalesce(metadata_team, "unassigned"),
+       stream=coalesce(log_stream_name, agent_stream_name, "unknown"),
+       status=if(isnotnull(cleared_time) AND cleared_time > _time, "Closed", "New"),
+       security_domain="AI / Agentic",
+       rule_name="SAO Guardrail: " . alert_name,
+       title=alert_name . " on " . project_name . "/" . coalesce(log_stream_name, "unknown"),
+       condition=metric . " " . operator . " " . threshold,
+       urgency=case(
+         alert_name=="Prompt Injection" AND env=="production", "critical",
+         alert_name=="PII Detected"     AND env=="production", "critical",
+         alert_name=="Prompt Injection" OR alert_name=="PII Detected" OR alert_name=="Unsafe Tool Call", "high",
+         alert_name=="Toxicity", "medium",
+         true(), "low"),
+       urgency_rank=case(urgency=="critical",4, urgency=="high",3, urgency=="medium",2, true(),1),
+       dwell_seconds=if(status=="Closed", cleared_time - _time, now() - _time)

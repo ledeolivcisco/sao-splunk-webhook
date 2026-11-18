@@ -1,0 +1,171 @@
+<form version="1.1" theme="dark">
+  <label>Incident Review — SAO AI Guardrails</label>
+  <description>Agentic-AI guardrail breaches from Splunk AI Observability, triaged as notables. Click any row to pivot into SAO and read the traces that tripped the guardrail.</description>
+
+  <fieldset submitButton="false" autoRun="true">
+    <input type="time" token="tr">
+      <label>Time</label>
+      <default><earliest>-48h@h</earliest><latest>now</latest></default>
+    </input>
+    <input type="multiselect" token="urgency_tok">
+      <label>Urgency</label>
+      <choice value="critical">Critical</choice>
+      <choice value="high">High</choice>
+      <choice value="medium">Medium</choice>
+      <choice value="low">Low</choice>
+      <default>critical,high,medium,low</default>
+      <prefix>(</prefix><suffix>)</suffix>
+      <valuePrefix>urgency="</valuePrefix><valueSuffix>"</valueSuffix>
+      <delimiter> OR </delimiter>
+    </input>
+    <input type="dropdown" token="status_tok">
+      <label>Status</label>
+      <choice value="*">All</choice>
+      <choice value="New">New (open)</choice>
+      <choice value="Closed">Closed (recovered)</choice>
+      <default>*</default>
+    </input>
+    <input type="dropdown" token="project_tok">
+      <label>AI project</label>
+      <choice value="*">All projects</choice>
+      <search><query>`sao_notables` | stats count by project_name | sort - count</query>
+        <earliest>-7d</earliest><latest>now</latest></search>
+      <fieldForLabel>project_name</fieldForLabel>
+      <fieldForValue>project_name</fieldForValue>
+      <default>*</default>
+    </input>
+  </fieldset>
+
+  <!-- Static shortcut to one agent stream. The host, tenant and the project /
+       log-stream ids below are placeholders: replace them with a link copied
+       from your own SAO console, or this button 404s. The per-row drilldown
+       further down needs no editing, it follows each notable's deep_link. -->
+  <row>
+    <panel>
+      <html>
+        <div style="padding:6px 0 2px 0;">
+          <a href="https://console.multitenant.sao.splunkcloud.com/your-tenant/project/33333333-3333-4333-8333-333333333333/agent-streams/44444444-4444-4444-8444-444444444444?timeRange=%7B%22type%22%3A%22lastWeek%22%7D&amp;table-filters-store-v1=%7B%22state%22%3A%7B%22filters%22%3A%5B%5D%2C%22filterConnector%22%3A%22and%22%2C%22textSearch%22%3A%22%22%2C%22lastContextKey%22%3A%2233333333-3333-4333-8333-333333333333-44444444-4444-4444-8444-444444444444-%22%7D%2C%22version%22%3A0%7D" target="_blank" rel="noopener noreferrer"
+             style="display:inline-block;background:#65A637;color:#ffffff;padding:10px 20px;
+                    border-radius:4px;font-size:14px;font-weight:600;text-decoration:none;">
+            Open SAO console — demo-project / demo-stream
+          </a>
+          <span style="margin-left:14px;opacity:0.65;font-size:12px;">
+            Live agent stream, last 7 days
+          </span>
+        </div>
+      </html>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <single>
+        <title>Open notables</title>
+        <search><query>`sao_notables` | search $urgency_tok$ project_name="$project_tok$" status="New" | stats count</query>
+          <earliest>$tr.earliest$</earliest><latest>$tr.latest$</latest></search>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53a051","0xf8be34","0xdc4e41"]</option>
+        <option name="rangeValues">[1,4]</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Critical urgency</title>
+        <search><query>`sao_notables` | search project_name="$project_tok$" status="New" urgency="critical" | stats count</query>
+          <earliest>$tr.earliest$</earliest><latest>$tr.latest$</latest></search>
+        <option name="colorMode">block</option>
+        <option name="rangeColors">["0x53a051","0xdc4e41"]</option>
+        <option name="rangeValues">[0]</option>
+        <option name="useColors">1</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>AI agents affected</title>
+        <search><query>`sao_notables` | search $urgency_tok$ project_name="$project_tok$" status="$status_tok$" | stats dc(stream) as agents</query>
+          <earliest>$tr.earliest$</earliest><latest>$tr.latest$</latest></search>
+        <option name="colorMode">none</option>
+      </single>
+    </panel>
+    <panel>
+      <single>
+        <title>Median time open</title>
+        <search><query>`sao_notables` | search $urgency_tok$ project_name="$project_tok$" | stats median(dwell_seconds) as d | eval d=tostring(round(d), "duration")</query>
+          <earliest>$tr.earliest$</earliest><latest>$tr.latest$</latest></search>
+        <option name="colorMode">none</option>
+      </single>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <chart>
+        <title>Guardrail breaches over time, by urgency</title>
+        <search><query>`sao_notables` | search $urgency_tok$ project_name="$project_tok$" status="$status_tok$" | timechart span=2h count by urgency</query>
+          <earliest>$tr.earliest$</earliest><latest>$tr.latest$</latest></search>
+        <option name="charting.chart">column</option>
+        <option name="charting.chart.stackMode">stacked</option>
+        <option name="charting.fieldColors">{"critical":0xdc4e41,"high":0xf1813f,"medium":0xf8be34,"low":0x6db7c6}</option>
+        <option name="charting.legend.placement">right</option>
+        <option name="charting.axisTitleY.text">Notables</option>
+      </chart>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <title>Notables — click a row to open the evidence in SAO</title>
+      <table>
+        <search><query>`sao_notables`
+| search $urgency_tok$ project_name="$project_tok$" status="$status_tok$"
+| sort - urgency_rank - _time
+| eval observed=observed_value . "  (threshold " . threshold . ")",
+       age=tostring(round(dwell_seconds), "duration")
+| table _time urgency status title condition observed age owner env deep_link
+| rename _time as "Time", urgency as "Urgency", status as "Status", title as "Notable",
+         condition as "Condition", observed as "Observed", age as "Age",
+         owner as "Owner", env as "Env"</query>
+          <earliest>$tr.earliest$</earliest><latest>$tr.latest$</latest></search>
+        <option name="count">25</option>
+        <option name="drilldown">row</option>
+        <option name="refresh.display">progressbar</option>
+        <format type="color" field="Urgency">
+          <colorPalette type="map">{"critical":#DC4E41,"high":#F1813F,"medium":#F8BE34,"low":#6DB7C6}</colorPalette>
+        </format>
+        <format type="color" field="Status">
+          <colorPalette type="map">{"New":#DC4E41,"Closed":#53A051}</colorPalette>
+        </format>
+        <drilldown>
+          <link target="_blank">$row.deep_link|n$</link>
+        </drilldown>
+      </table>
+    </panel>
+  </row>
+
+  <row>
+    <panel>
+      <chart>
+        <title>Which guardrail is firing</title>
+        <search><query>`sao_notables` | search $urgency_tok$ project_name="$project_tok$" status="$status_tok$" | stats count by alert_name | sort - count</query>
+          <earliest>$tr.earliest$</earliest><latest>$tr.latest$</latest></search>
+        <option name="charting.chart">bar</option>
+        <option name="charting.legend.placement">none</option>
+      </chart>
+    </panel>
+    <panel>
+      <table>
+        <title>Riskiest AI agents</title>
+        <search><query>`sao_notables` | search $urgency_tok$ project_name="$project_tok$"
+| stats count as breaches, sum(urgency_rank) as risk_score, dc(alert_name) as guardrails,
+        latest(status) as last_status by project_name, stream
+| sort - risk_score
+| rename project_name as Project, stream as Agent, breaches as Breaches,
+         risk_score as "Risk score", guardrails as Guardrails, last_status as "Last status"</query>
+          <earliest>$tr.earliest$</earliest><latest>$tr.latest$</latest></search>
+        <option name="count">10</option>
+        <option name="drilldown">none</option>
+      </table>
+    </panel>
+  </row>
+</form>
